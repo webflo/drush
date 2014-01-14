@@ -144,6 +144,12 @@ function drush_format($input, $metadata = NULL, $format = NULL) {
  */
 function dt($string, $args = array()) {
   $output = NULL;
+
+  // Bypass exception for empty strings.
+  if (empty($string)) {
+    return $output;
+  }
+
   if (function_exists('t') && drush_drupal_major_version() == 7) {
     $output = t($string, $args);
   }
