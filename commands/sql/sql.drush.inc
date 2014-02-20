@@ -224,6 +224,7 @@ function sql_drush_command() {
       'drush sql-cli' => "Open a SQL command-line interface using Drupal's credentials.",
       'drush sql-cli -A' => "Open a SQL command-line interface using Drupal's credentials and skip reading table information.",
     ),
+    'remote-tty' => TRUE,
   );
   $items['sql-sanitize'] = array(
     'description' => "Run sanitization operations on the current database.",
@@ -246,7 +247,7 @@ function sql_drush_help_alter(&$command) {
     if ($command['command'] == 'sql-sync') {
       unset($command['options']['source-target']['hidden'], $command['options']['target-target']['hidden']);
     }
-    else {
+    elseif ($command['commandfile'] == 'sql') {
       unset($command['options']['target']['hidden']);
     }
   }

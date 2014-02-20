@@ -520,7 +520,7 @@ function _core_path_aliases($project = '') {
         }
       }
 
-      if (drush_has_boostrapped(DRUSH_BOOTSTRAP_DRUPAL_CONFIGURATION)) {
+      if (drush_has_boostrapped(DRUSH_BOOTSTRAP_DRUPAL_FULL)) {
         $paths['%files'] = drush_file_get_public();
         if ($private_path = drush_file_get_private()) {
           $paths['%private'] = $private_path;
@@ -579,8 +579,10 @@ function _core_site_status_table($project = '') {
         }
       }
     }
-    $status_table['theme'] = drush_theme_get_default();
-    $status_table['admin-theme'] = drush_theme_get_admin();
+    if (drush_has_boostrapped(DRUSH_BOOTSTRAP_DRUPAL_FULL)) {
+      $status_table['theme'] = drush_theme_get_default();
+      $status_table['admin-theme'] = drush_theme_get_admin();
+    }
   }
   if ($php_bin = drush_get_option('php')) {
     $status_table['php-bin'] = $php_bin;

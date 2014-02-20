@@ -395,14 +395,6 @@ function _drush_bootstrap_drush_validate() {
     return $return;
   }
 
-  if (drush_environment_lib() === FALSE) {
-    return FALSE;
-  }
-
-  if (drush_environment_table_lib() === FALSE) {
-    return FALSE;
-  }
-
   return TRUE;
 }
 
@@ -1011,6 +1003,15 @@ function drush_bootstrap_value($context, $value = null) {
  */
 function drush_bootstrap_prepare() {
   define('DRUSH_BASE_PATH', dirname(dirname(__FILE__)));
+  $local_vendor_path = DRUSH_BASE_PATH . '/vendor/autoload.php';
+  $global_vendor_path = DRUSH_BASE_PATH . '/../../../vendor/autoload.php';
+
+  // Check for a local composer install or a global composer install. Vendor dirs are in different spots).
+  if ((!@include $local_vendor_path) && (!@include $global_vendor_path)) {
+    $msg = "Unable to load autoload.php. Drush now requires Composer in order to install its depedencies and autoload classes. Please see README.md\n";
+    fwrite(STDERR, $msg);
+    return FALSE;
+  }
 
   require_once DRUSH_BASE_PATH . '/includes/environment.inc';
   require_once DRUSH_BASE_PATH . '/includes/command.inc';

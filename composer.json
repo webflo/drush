@@ -3,6 +3,8 @@
   "description": "Drush is a command line shell and scripting interface for Drupal, a veritable Swiss Army knife designed to make life easier for those of us who spend some of our working hours hacking away at the command prompt.",
   "homepage": "http://www.drush.org",
   "license": "GPL-2.0+",
+  "minimum-stability": "dev",
+  "prefer-stable": true,
   "authors": [
     { "name": "Moshe Weitzman", "email": "weitzman@tejasa.com" },
     { "name": "Owen Barton", "email": "drupal@owenbarton.com" },
@@ -23,9 +25,20 @@
     "drush.complete.sh"
   ],
   "require": {
-    "php": ">=5.3.0"
+    "php": ">=5.3.0",
+    "d11wtq/boris": "*",
+    "symfony/yaml": "2.2.1",
+    "pear/console_table": "1.1.5"
   },
   "require-dev": {
     "phpunit/phpunit": ">=3.5"
+  },
+  "autoload": {
+    "psr-0": {
+      "Drush":        "lib/"
+    }
+  },
+  "suggest": {
+    "youngj/httpserver": "dev-master#41dd2b7 as 1.0.1"
   }
 }

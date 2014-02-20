@@ -79,21 +79,28 @@ function config_drush_command() {
   );
 
   $items['config-export'] = array(
-    'description' => 'Export config from the active directory to staging directory.',
+    'description' => 'Export config from the active directory.',
     'core' => array('8+'),
     'aliases' => array('cex'),
     'arguments' => array(
-      'destination' => "A config directory name. Defaults to 'staging'",
+      'destination' => "A config directory label (i.e. a key in \$config_directories array in settings.php). Defaults to 'staging'",
     ),
     'options' => array(
       'add' => 'Run `git add -p` after exporting. This lets you choose which config changes to stage for commit.',
+      'target' => 'An arbitrary directory that should receive the exported files. An alternative to destination argument',
     ),
   );
 
   $items['config-import'] = array(
     'description' => 'Import config from a config directory.',
     'arguments' => array(
-      'source' => "A config directory name. Defaults to 'staging'",
+      'source' => "A config directory label (i.e. a key in \$config_directories array in settings.php). Defaults to 'staging'",
+    ),
+    'options' => array(
+      'preview' => array(
+        'description' => 'Format for displaying proposed changes. Recognized values: list, diff. Defaults to list',
+        'example-value' => 'list',
+      ),
     ),
     'core' => array('8+'),
     'aliases' => array('cim'),
@@ -151,7 +158,7 @@ function config_drush_command() {
  *   The config prefix to retrieve, or empty to return all.
  */
 function drush_config_list($prefix = '') {
-  $names = config_get_storage_names_with_prefix($prefix);
+  $names = \Drupal::configFactory()->listAll($prefix);
 
   if (empty($names)) {
     // Just in case there is no config.
@@ -218,11 +225,6 @@ function drush_config_set($config_name, $key = NULL, $data = NULL) {
   // Now, we parse the value.
   switch (drush_get_option('format', 'string')) {
     case 'yaml':
-      if (!class_exists('Symfony\Component\Yaml')) {
-        // For Drush PSR-0 and Composer information, see http://drupal.org/node/1316322.
-        $path = DRUSH_BASE_PATH . '/lib/Yaml-' . DRUSH_YAML_VERSION;
-        require_once "$path/Yaml.php";
-      }
       $parser = new Parser();
       $data = $parser->parse($data, TRUE);
   }
@@ -250,27 +252,57 @@ function drush_config_set($config_name, $key = NULL, $data = NULL) {
   }
 }
 
+function drush_config_export_validate() {
+  if ($target = drush_get_option('target')) {
+    if (!file_exists($target)) {
+      return drush_set_error('config_export_target', 'The target directory does not exist.');
+    }
+    if (!is_dir($target)) {
+      return drush_set_error('config_export_target', 'The target is not a directory.');
+    }
+    if (!is_writable($target)) {
+      return drush_set_error('config_export_target', 'The target directory is not writable.');
+    }
+  }
+}
+
 /**
  * Command callback: Export config to specified directory (usually staging).
  */
-function drush_config_export($destination = CONFIG_STAGING_DIRECTORY) {
-  // Retrieve a list of differences between the active and staged configuration.
-  $active_dir = config_get_config_directory(CONFIG_ACTIVE_DIRECTORY);
-  $destination_dir = config_get_config_directory($destination);
+function drush_config_export($destination = NULL) {
+  global $config_directories;
 
-  if (count(glob($destination_dir . '/*')) > 0) {
-    if (!drush_confirm(dt('The current contents of your staging directory (!staging) will be deleted.', array('!staging' => $destination_dir)))) {
-      return drush_user_abort();
-    }
-  }
-
-  if (drush_delete_dir_contents($destination_dir, TRUE)) {
-    // We specify the MERGE flag below in order to copy only contents, not the dir itself. Since
-    // The dir is empty, it is effectively a copy, not a merge.
-    drush_copy_dir($active_dir, $destination_dir, FILE_EXISTS_MERGE);
+  if ($target = drush_get_option('target')) {
+    $destination_dir = $target;
   }
   else {
-    return drush_set_error('DRUSH_CONFIG_EXPORT_DELETE', dt('Failed to empty staging directory.'));
+    $choices = drush_map_assoc(array_keys($config_directories));
+    unset($choices[CONFIG_ACTIVE_DIRECTORY]);
+    if (is_null($destination) && count($config_directories) >= 2) {
+      $destination = drush_choice($choices, 'Choose a destination.');
+      if (empty($destination)) {
+        return drush_user_abort();
+      }
+    }
+    elseif (is_null($destination)) {
+      $destination = CONFIG_STAGING_DIRECTORY;
+    }
+    $destination_dir = config_get_config_directory($destination);
+  }
+  $active_dir = config_get_config_directory(CONFIG_ACTIVE_DIRECTORY);
+
+  if (count(glob($destination_dir . '/*')) > 0) {
+    if (!drush_confirm(dt('The current contents of your export directory (!target) will be deleted.', array('!target' => $destination_dir)))) {
+      return drush_user_abort();
+    }
+    drush_delete_dir_contents($destination_dir, TRUE);
+  }
+
+  // Empty destination dir and then write all .yml files there.
+  $source_storage = Drupal::service('config.storage');
+  $destination_storage = new FileStorage($destination_dir);
+  foreach ($source_storage->listAll() as $name) {
+    $destination_storage->write($name, $source_storage->read($name));
   }
 
   if (drush_get_option('add')) {
@@ -281,15 +313,43 @@ function drush_config_export($destination = CONFIG_STAGING_DIRECTORY) {
 /**
  * Command callback. Import from specified config directory (defaults to staging).
  */
-function drush_config_import($source = 'staging') {
-  // Retrieve a list of differences between the active and staged configuration.
-  $source_storage = new FileStorage(config_get_config_directory($source));
-  $config_comparer = new StorageComparer($source_storage, Drupal::service('config.storage'));
+function drush_config_import($source = NULL) {
+  global $config_directories;
+
+  $choices = drush_map_assoc(array_keys($config_directories));
+  unset($choices[CONFIG_ACTIVE_DIRECTORY]);
+  if (is_null($source) && count($config_directories) >= 2) {
+    $source= drush_choice($choices, 'Choose a source.');
+    if (empty($source)) {
+      return drush_user_abort();
+    }
+  }
+  elseif (is_null($source)) {
+    $source = CONFIG_STAGING_DIRECTORY;
+  }
+  $source_dir = config_get_config_directory($source);
+
+  // Retrieve a list of differences between the active and source configuration (if any).
+  $active_storage = Drupal::service('config.storage');
+  $source_storage = new FileStorage($source_dir);
+  $config_comparer = new StorageComparer($source_storage, $active_storage);
   if (!$config_comparer->createChangelist()->hasChanges()) {
     return drush_log(dt('There are no changes to import.'), 'ok');
   }
-  $change_list = $config_comparer->getChangelist();
-   _drush_print_config_changes_table($change_list);
+
+  if (drush_get_option('preview', 'list') == 'list') {
+    $change_list = $config_comparer->getChangelist();
+    _drush_print_config_changes_table($change_list);
+  }
+  else {
+    $target_dir = drush_tempdir();
+    drush_invoke_process('@self', 'config-export', array(), array('target' => $target_dir));
+    // @todo Can DiffFormatter produce a CLI pretty diff?
+    drush_shell_exec('diff -u %s %s', $target_dir, $source_dir);
+    $output = drush_shell_exec_output();
+    drush_print(implode("\n", $output));
+  }
+
   if (drush_confirm(dt('Import the listed configuration changes?'))) {
     return drush_op('_drush_config_import', $config_comparer);
   }
@@ -300,10 +360,8 @@ function _drush_config_import(StorageComparer $storage_comparer) {
   $config_importer = new ConfigImporter(
     $storage_comparer,
     Drupal::service('event_dispatcher'),
-    Drupal::service('config.factory'),
-    Drupal::entityManager(),
+    Drupal::service('config.manager'),
     Drupal::lock(),
-    Drupal::service('uuid'),
     Drupal::service('config.typed')
   );
   if ($config_importer->alreadyImporting()) {
@@ -339,7 +397,7 @@ function drush_config_edit($config_name = '') {
     }
   }
   else {
-    $config_names = config_get_storage_names_with_prefix();
+    $config_names = \Drupal::configFactory()->listAll();
     $choice = drush_choice($config_names, 'Choose a configuration.');
     if (empty($choice)) {
       return drush_user_abort();
