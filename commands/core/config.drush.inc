@@ -360,9 +360,12 @@ function _drush_config_import(StorageComparer $storage_comparer) {
   $config_importer = new ConfigImporter(
     $storage_comparer,
     Drupal::service('event_dispatcher'),
-    Drupal::service('config.manager'),
-    Drupal::lock(),
-    Drupal::service('config.typed')
+    Drupal::service('config.factory'),
+    Drupal::service('entity.manager'),
+    Drupal::service('lock'),
+    Drupal::service('uuid'),
+    Drupal::service('config.typed'),
+    Drupal::service('module_handler')
   );
   if ($config_importer->alreadyImporting()) {
     drush_log('Another request may be synchronizing configuration already.', 'warning');
