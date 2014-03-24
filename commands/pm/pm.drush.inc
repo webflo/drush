@@ -939,7 +939,7 @@ function drush_pm_enable_validate() {
       }
       elseif (!empty($info['dependencies'])) {
         // Make sure we have an assoc array.
-        $assoc = drupal_map_assoc($info['dependencies']);
+        $assoc = drush_map_assoc($info['dependencies']);
         $all_dependencies = array_merge($all_dependencies, $assoc);
       }
     }

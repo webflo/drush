@@ -82,7 +82,7 @@ function drush_image_flush($style_name = NULL) {
   }
 
   if (empty($style_name)) {
-    $choices = drupal_map_assoc(array_keys(drush_image_styles()));
+    $choices = drush_map_assoc(array_keys(drush_image_styles()));
     $choices = array_merge(array('all' => 'all'), $choices);
     $style_name = drush_choice($choices, dt("Choose a style to flush."));
     if ($style_name === FALSE) {

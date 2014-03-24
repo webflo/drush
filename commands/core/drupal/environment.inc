@@ -99,7 +99,7 @@ function drush_check_module_dependencies($modules, $module_info) {
 function drush_module_dependents($modules, $module_info) {
   $dependents = array();
   foreach ($modules as $module) {
-    $dependents = array_merge($dependents, drupal_map_assoc(array_keys($module_info[$module]->required_by)));
+    $dependents = array_merge($dependents, drush_map_assoc(array_keys($module_info[$module]->required_by)));
   }
 
   return array_unique($dependents);
