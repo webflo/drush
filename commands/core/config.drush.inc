@@ -374,6 +374,7 @@ function _drush_config_import(StorageComparer $storage_comparer) {
     Drupal::lock(),
     Drupal::service('config.typed'),
     Drupal::moduleHandler(),
+    Drupal::service('module_installer'),
     Drupal::service('theme_handler'),
     Drupal::service('string_translation')
   );
