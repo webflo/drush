@@ -8,6 +8,7 @@
  */
 
 use Drupal\Core\Site\Settings;
+use Drupal\Core\StreamWrapper\PrivateStream;
 use Psr\Log\LogLevel;
 
 
@@ -198,8 +199,8 @@ function drush_module_enable($modules) {
   // Our logger got blown away during the container rebuild above.
   \Drupal::getContainer()->get('logger.factory')->addLogger(new \Drush\Log\DrushLog);
 
-  // Flush all caches.
-  drupal_flush_all_caches();
+  // Flush all caches. No longer needed in D8 per https://github.com/drush-ops/drush/issues/1207
+  // drupal_flush_all_caches();
 }
 
 /**
@@ -350,7 +351,7 @@ function _drush_file_public_path() {
 }
 
 function _drush_file_private_path() {
-  return \Drupal::config('system.file')->get('path.private');
+  return PrivateStream::basePath();
 }
 
 /**
