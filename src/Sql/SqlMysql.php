@@ -128,6 +128,10 @@ EOT;
             $parameters['ssl-key'] = $dbSpec['pdo'][PDO::MYSQL_ATTR_SSL_KEY];
         }
 
+        if (isset($dbSpec['pdo'][PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT]) && (bool) $dbSpec['pdo'][PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] === FALSE) {
+            $parameters['skip-ssl'] = TRUE;
+        }
+
         return $this->paramsToOptions($parameters);
     }
 
